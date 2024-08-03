@@ -1,46 +1,30 @@
 package main
 
 import (
-	"fmt"
-	"log"
-	"os"
+	"math/rand/v2"
 	"time"
 
 	"github.com/faiface/beep"
-	"github.com/faiface/beep/mp3"
 	"github.com/faiface/beep/speaker"
 )
 
+func Noise() beep.Streamer {
+	return beep.StreamerFunc(func(samples [][2]float64) (n int, ok bool) {
+		for i := range samples {
+			samples[i][0] = rand.Float64()*2 - 1
+			samples[i][1] = rand.Float64()*2 - 1
+		}
+		return len(samples), true
+	})
+}
+
 func main() {
-	f, err := os.Open("eno.mp3")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	streamer, format, err := mp3.Decode(f)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer streamer.Close()
-
-	speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
-
-	loop := beep.Loop(3, streamer)
-	fast := beep.ResampleRatio(2, 2, loop)
+	sr := beep.SampleRate(44100)
+	speaker.Init(sr, sr.N(time.Second/10))
 
 	done := make(chan bool)
-	speaker.Play(beep.Seq(fast, beep.Callback(func() {
+	speaker.Play(beep.Seq(beep.Take(sr.N(5*time.Second), Noise()), beep.Callback(func() {
 		done <- true
 	})))
-
-	for {
-		select {
-		case <-done:
-			return
-		case <-time.After(time.Second):
-			speaker.Lock()
-			fmt.Println(format.SampleRate.D(streamer.Position()).Round(time.Second))
-			speaker.Unlock()
-		}
-	}
+	<-done
 }
