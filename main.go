@@ -1,55 +1,30 @@
 package main
 
 import (
-	"math"
+	"math/rand/v2"
 	"time"
 
 	"github.com/faiface/beep"
 	"github.com/faiface/beep/speaker"
 )
 
-type SineWave struct {
-	freq       float64
-	sampleRate beep.SampleRate
-	phase      float64
-}
+type Noise struct{}
 
-// Stream generates the next samples of the sine wave
-func (s *SineWave) Stream(samples [][2]float64) (n int, ok bool) {
+func (noise Noise) Stream(samples [][2]float64) (n int, ok bool) {
 	for i := range samples {
-		sample := math.Sin(2 * math.Pi * s.phase)
-		samples[i][0] = sample
-		samples[i][1] = sample
-		s.phase += s.freq / float64(s.sampleRate)
-		if s.phase >= 1 {
-			s.phase -= 1
-		}
+		samples[i][0] = rand.Float64()*2 - 1
+		samples[i][1] = rand.Float64()*2 - 1
 	}
 	return len(samples), true
 }
 
-func (s *SineWave) Err() error {
+func (noise Noise) Err() error {
 	return nil
 }
 
 func main() {
-	sampleRate := beep.SampleRate(10000)
-	beepDuration := time.Second
-
-	speaker.Init(sampleRate, sampleRate.N(time.Second/10))
-
-	// Create a sine wave oscillator
-	freq := 350.0 // Frequency of the beep
-	sine := &SineWave{freq: freq, sampleRate: sampleRate}
-
-	// Create a streamer that plays the sine wave for the specified duration
-	streamer := beep.Take(sampleRate.N(beepDuration), sine)
-
-	// Play the beep sound
-	done := make(chan bool)
-	speaker.Play(beep.Seq(streamer, beep.Callback(func() {
-		done <- true
-	})))
-
-	<-done
+	sr := beep.SampleRate(44100)
+	speaker.Init(sr, sr.N(time.Second/10))
+	speaker.Play(Noise{})
+	select {}
 }
