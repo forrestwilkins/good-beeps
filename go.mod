@@ -2,10 +2,9 @@ module beep.com/mod
 
 go 1.22.5
 
-require github.com/faiface/beep v1.1.0
+require github.com/faiface/beep v1.0.0
 
 require (
-	github.com/hajimehoshi/go-mp3 v0.3.0 // indirect
 	github.com/hajimehoshi/oto v0.7.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	golang.org/x/exp v0.0.0-20190306152737-a1d7652674e8 // indirect
