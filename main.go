@@ -1,46 +1,55 @@
 package main
 
 import (
-	"fmt"
-	"log"
-	"os"
+	"math"
 	"time"
 
 	"github.com/faiface/beep"
-	"github.com/faiface/beep/mp3"
 	"github.com/faiface/beep/speaker"
 )
 
+type SineWave struct {
+	freq       float64
+	sampleRate beep.SampleRate
+	phase      float64
+}
+
+// Stream generates the next samples of the sine wave
+func (s *SineWave) Stream(samples [][2]float64) (n int, ok bool) {
+	for i := range samples {
+		sample := math.Sin(2 * math.Pi * s.phase)
+		samples[i][0] = sample
+		samples[i][1] = sample
+		s.phase += s.freq / float64(s.sampleRate)
+		if s.phase >= 1 {
+			s.phase -= 1
+		}
+	}
+	return len(samples), true
+}
+
+func (s *SineWave) Err() error {
+	return nil
+}
+
 func main() {
-	f, err := os.Open("eno.mp3")
-	if err != nil {
-		log.Fatal(err)
-	}
+	sampleRate := beep.SampleRate(10000)
+	beepDuration := time.Second
 
-	streamer, format, err := mp3.Decode(f)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer streamer.Close()
+	speaker.Init(sampleRate, sampleRate.N(time.Second/10))
 
-	speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
+	// Create a sine wave oscillator
+	freq := 350.0 // Frequency of the beep
+	sine := &SineWave{freq: freq, sampleRate: sampleRate}
 
-	loop := beep.Loop(3, streamer)
-	fast := beep.ResampleRatio(2, 2, loop)
+	// Create a streamer that plays the sine wave for the specified duration
+	streamer := beep.Take(sampleRate.N(beepDuration), sine)
 
+	// Play the beep sound
 	done := make(chan bool)
-	speaker.Play(beep.Seq(fast, beep.Callback(func() {
+	speaker.Play(beep.Seq(streamer, beep.Callback(func() {
 		done <- true
 	})))
 
-	for {
-		select {
-		case <-done:
-			return
-		case <-time.After(time.Second):
-			speaker.Lock()
-			fmt.Println(format.SampleRate.D(streamer.Position()).Round(time.Second))
-			speaker.Unlock()
-		}
-	}
+	<-done
 }
